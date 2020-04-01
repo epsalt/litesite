@@ -1,0 +1,255 @@
+import email
+import os
+import urllib.parse
+
+from dateutil.parser import parse
+
+import metadata
+
+
+class Section:
+    def __init__(self, path, files, parent, site):
+        self.path = path
+        self.site = site
+        self.name = os.path.basename(path)
+        self.subsections = []
+        self.parent = parent
+
+        self.index = None
+        self.kind = "section"
+        self.pages = []
+
+        for _file in files:
+            page = Page(os.path.join(path, _file), self, site)
+
+            if _file == "_index.md":
+                self.index = page
+                self.index.is_index = True
+            else:
+                self.pages.append(page)
+
+    @property
+    def pagesby_default(self):
+        default_keys = ("date", "title")
+        sorted_pages = sorted(
+            self.pages, key=lambda page: tuple(getattr(page, k) for k in default_keys)
+        )
+
+        return sorted_pages
+
+    @property
+    def pagesby_date(self):
+        sorted_pages = sorted(self.pages, key=lambda page: page.date)
+
+        return sorted_pages
+
+    @property
+    def rel(self):
+        return os.path.relpath(self.path, self.site.content_root)
+
+    @property
+    def all_pages(self):
+        if self.index:
+            return self.pages + [self.index]
+
+        return self.pages
+
+
+class Category:
+    def __init__(self, name, group, site):
+        self.name = name
+        self.group = group
+        self.site = site
+        self.kind = "category"
+
+        vals = set()
+        for page in self.pages:
+            for val in page.metadata.get(self.group):
+                vals.add(val)
+
+        self.items = [CategoryItem(self, val, site) for val in vals]
+
+    def render(self):
+        """Render tag index page"""
+        out = os.path.join(self.site.site_dest, self.group, "index.html")
+        files = [self.kind, self.group, "index"]
+        args = {"category": self, "site": self.site}
+
+        self.site.renderer.render(
+            out, self, files, args=args,
+        )
+
+    @property
+    def rel(self):
+        return os.path.join(self.group, self.name)
+
+    @property
+    def pages(self):
+        """All pages with category present in metadata"""
+        for page in self.site.pages:
+            if page.metadata.get(self.group):
+                yield page
+
+
+class CategoryItem:
+    def __init__(self, category, value, site):
+        self.category = category
+        self.value = value
+        self.site = site
+        self.kind = "item"
+
+    def render(self):
+        out = os.path.join(self.site.site_dest, self.rel)
+        files = [self.kind, self.value, self.category.name]
+        args = {"item": self, "category": self.category, "site": self.site}
+
+        self.site.renderer.render(
+            out, self, files, args=args,
+        )
+
+    @property
+    def pages(self):
+        for page in self.category.pages:
+            if self.value in page.metadata.get(self.category.group):
+                yield page
+
+    @property
+    def rel(self):
+        return os.path.join(self.category.group, self.value)
+
+    @property
+    def url(self):
+        return urllib.parse.urljoin(self.category.group, self.value)
+
+    @property
+    def permalink(self):
+        return urllib.parse.urljoin(self.site.base_url, self.url)
+
+
+class Page:
+    def __init__(self, _file, section, site):
+        read = site.reader.read(_file)
+        self.content = read.content
+        self.metadata = metadata.parse(read.meta)
+        self.kind = "page"
+
+        self.section = section
+        self.site = site
+        path, self.ext = os.path.splitext(_file)
+        self.name = os.path.basename(path)
+
+        self.is_index = False
+
+    def render(self):
+        args = {"page": self, "section": self.section, "site": self.site}
+
+        if self.is_index:
+            self._render_index(args)
+
+            if self.metadata.get("rss"):
+                self._render_rss(args)
+
+        else:
+            self._render_regular_page(args)
+
+    def _render_regular_page(self, args):
+        out = os.path.join(self.site.site_dest, self.url)
+        files = [self.kind, self.slug, self.metadata.get("template")]
+        self.site.renderer.render(out, self, files, args)
+
+    def _render_index(self, args):
+        out = os.path.join(self.site.site_dest, self.section.rel, "index.html")
+        files = [self.section.name, "index", "home"]
+        self.site.renderer.render(out, self, files, args)
+
+    def _render_rss(self, args):
+        out = os.path.join(self.site.site_dest, self.section.rel, "rss.xml")
+        pubdate = email.utils.formatdate()
+        files = ["rss", "feed", "atom"]
+        args = {"section": self, "site": self.site, "pubDate": pubdate}
+
+        self.site.renderer.render(
+            out, self, files, args, pretty=False,
+        )
+
+    @property
+    def nextin_section(self):
+        sorted_pages = self.section.pagesby_default
+
+        try:
+            loc = sorted_pages.index(self)
+            return sorted_pages[loc + 1]
+
+        except IndexError:
+            return None
+
+    @property
+    def previn_section(self):
+        sorted_pages = self.section.pagesby_default
+
+        loc = sorted_pages.index(self)
+        prev = sorted_pages[loc - 1] if loc else None
+
+        return prev
+
+    @property
+    def url(self):
+        if self.section.name in self.site.config["url_format"].keys():
+            template = self.site.config["url_format"][self.section.name]
+        else:
+            template = "{p.section.rel}/{p.slug}"
+
+        return template.format(p=self)
+
+    @property
+    def rel(self):
+        return os.path.join(self.section.rel, self.name)
+
+    @property
+    def permalink(self):
+        return urllib.parse.urljoin(self.site.base_url, self.url)
+
+    @property
+    def title(self):
+        return self.metadata.get("title")
+
+    @property
+    def slug(self):
+        return self.metadata.get("slug")
+
+    @property
+    def date(self):
+        date_string = self.metadata["date"]
+
+        if not date_string:
+            return None
+
+        return parse(date_string)
+
+    @property
+    def pubdate(self):
+        if not self.date:
+            return None
+
+        return email.utils.formatdate(self.date.timestamp())
+
+    @property
+    def year(self):
+        if not self.date:
+            return None
+
+        return self.date.strftime("%Y")
+
+    @property
+    def month(self):
+        if not self.date:
+            return None
+
+        return self.date.strftime("%m")
+
+    @property
+    def day(self):
+        if not self.date:
+            return None
+
+        return self.date.strftime("%d")
