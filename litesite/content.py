@@ -192,31 +192,3 @@ class Page:
             return None
 
         return parse(date_string)
-
-    @property
-    def pubdate(self):
-        if not self.date:
-            return None
-
-        return email.utils.formatdate(self.date.timestamp())
-
-    @property
-    def year(self):
-        if not self.date:
-            return None
-
-        return self.date.strftime("%Y")
-
-    @property
-    def month(self):
-        if not self.date:
-            return None
-
-        return self.date.strftime("%m")
-
-    @property
-    def day(self):
-        if not self.date:
-            return None
-
-        return self.date.strftime("%d")

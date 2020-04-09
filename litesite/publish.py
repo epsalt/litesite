@@ -1,5 +1,5 @@
 """Site level config reading and publishing"""
-import email
+import datetime
 import os
 import yaml
 
@@ -16,6 +16,7 @@ class Site:
         self.content_root = self.config["content"]["root"]
         self.site_dest = self.config["site"]["destination"]
         self.base_url = self.config["site"]["base_url"]
+        self.build_time = datetime.datetime.now()
 
         self.reader = readers.Reader(self)
         self.renderer = renderers.Renderer(self)
@@ -69,7 +70,3 @@ class Site:
             section = sections.pop()
             sections += section.subsections
             yield from section.all_pages
-
-    @property
-    def pubdate(self):
-        return email.utils.formatdate()

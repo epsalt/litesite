@@ -1,3 +1,4 @@
+import email
 import itertools
 import os
 
@@ -50,10 +51,11 @@ class Renderer:
 
 
 class Jinja:
-    @staticmethod
-    def render_template(directory, templates, args):
+    @classmethod
+    def render_template(cls, directory, templates, args):
         loader = FileSystemLoader(directory)
         env = Environment(loader=loader, auto_reload=True)
+        env.filters["pubdate"] = cls.pubdate
 
         template = env.select_template(templates)
         text = template.render(**args)
@@ -63,3 +65,7 @@ class Jinja:
     @staticmethod
     def render_string(template, args):
         return Template(template).render(args)
+
+    @staticmethod
+    def pubdate(datetime):
+        return email.utils.formatdate(datetime.timestamp())
