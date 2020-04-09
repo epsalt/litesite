@@ -20,13 +20,14 @@ class Renderer:
         if self.renderer is None:
             raise KeyError("Backend not implemented {}".format(self.backend))
 
-    def render(self, out, obj, files, args, pretty=True):
+    def render(self, obj, out, names, pretty=True):
         directory = self.site.config["content"]["templates"]
-        templates = self.lookup(obj, files)
+        templates = self.lookup(names)
 
         if not os.path.exists(os.path.dirname(out)):
             os.makedirs(os.path.dirname(out))
 
+        args = {obj.kind: obj, "site": self.site}
         text = self.renderer.render_template(directory, templates, args)
 
         if pretty:
@@ -39,15 +40,10 @@ class Renderer:
         return self.renderer.render_string(template, args)
 
     @staticmethod
-    def lookup(obj, files, default="_default"):
-        paths = [os.path.dirname(obj.rel), default]
+    def lookup(files):
         exts = [".html", ".html.jinja", ".xml", ".xml.jinja"]
-        files = [str(f) for f in files]
-
         templates = [
-            os.path.join(path, _file) + ext
-            for path, _file, ext in itertools.product(paths, files, exts)
-            if None not in (path, _file)
+            str(f) + ext for f, ext in itertools.product(files, exts) if f is not None
         ]
 
         return templates

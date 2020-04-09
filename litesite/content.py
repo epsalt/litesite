@@ -72,12 +72,9 @@ class Category:
     def render(self):
         """Render tag index page"""
         out = os.path.join(self.site.site_dest, self.group, "index.html")
-        files = [self.kind, self.group, "index"]
-        args = {"category": self, "site": self.site}
+        templates = [self.group, self.kind]
 
-        self.site.renderer.render(
-            out, self, files, args=args,
-        )
+        self.site.renderer.render(self, out, templates)
 
     @property
     def rel(self):
@@ -100,12 +97,9 @@ class CategoryItem:
 
     def render(self):
         out = os.path.join(self.site.site_dest, self.rel)
-        files = [self.kind, self.value, self.category.name]
-        args = {"item": self, "category": self.category, "site": self.site}
+        templates = [self.kind, self.value, self.category.name]
 
-        self.site.renderer.render(
-            out, self, files, args=args,
-        )
+        self.site.renderer.render(self, out, templates)
 
     @property
     def pages(self):
@@ -141,36 +135,9 @@ class Page:
         self.is_index = False
 
     def render(self):
-        args = {"page": self, "section": self.section, "site": self.site}
-
-        if self.is_index:
-            self._render_index(args)
-
-            if self.metadata.get("rss"):
-                self._render_rss(args)
-
-        else:
-            self._render_regular_page(args)
-
-    def _render_regular_page(self, args):
         out = os.path.join(self.site.site_dest, self.url)
-        files = [self.kind, self.slug, self.metadata.get("template")]
-        self.site.renderer.render(out, self, files, args)
-
-    def _render_index(self, args):
-        out = os.path.join(self.site.site_dest, self.section.rel, "index.html")
-        files = [self.section.name, "index", "home"]
-        self.site.renderer.render(out, self, files, args)
-
-    def _render_rss(self, args):
-        out = os.path.join(self.site.site_dest, self.section.rel, "rss.xml")
-        pubdate = email.utils.formatdate()
-        files = ["rss", "feed", "atom"]
-        args = {"section": self, "site": self.site, "pubDate": pubdate}
-
-        self.site.renderer.render(
-            out, self, files, args, pretty=False,
-        )
+        templates = [self.metadata.get("template"), self.kind]
+        self.site.renderer.render(self, out, templates)
 
     @property
     def nextin_section(self):
