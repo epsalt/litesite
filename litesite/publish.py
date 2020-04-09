@@ -1,4 +1,5 @@
 """Site level config reading and publishing"""
+import email
 import os
 import yaml
 
@@ -68,3 +69,7 @@ class Site:
             section = sections.pop()
             sections += section.subsections
             yield from section.all_pages
+
+    @property
+    def pubdate(self):
+        return email.utils.formatdate()
