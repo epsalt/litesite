@@ -164,9 +164,10 @@ class Page:
         if self.section.name in self.site.config["url_format"].keys():
             template = self.site.config["url_format"][self.section.name]
         else:
-            template = "{p.section.rel}/{p.slug}"
+            template = self.site.config["url_format"]["_default"]
 
-        return template.format(p=self)
+        args = {self.kind: self}
+        return self.site.renderer.render_string(template, args)
 
     @property
     def rel(self):
