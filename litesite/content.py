@@ -45,7 +45,7 @@ class Section:
 
     @property
     def rel(self):
-        return os.path.relpath(self.path, self.site.content_root)
+        return os.path.relpath(self.path, self.site.content)
 
     @property
     def all_pages(self):
@@ -71,7 +71,7 @@ class Category:
 
     def render(self):
         """Render tag index page"""
-        out = os.path.join(self.site.site_dest, self.group, "index.html")
+        out = os.path.join(self.site.site, self.group, "index.html")
         templates = [self.group, self.kind]
 
         self.site.renderer.render(self, out, templates)
@@ -96,7 +96,7 @@ class CategoryItem:
         self.kind = "item"
 
     def render(self):
-        out = os.path.join(self.site.site_dest, self.rel)
+        out = os.path.join(self.site.site, self.rel)
         templates = [self.kind, self.value, self.category.name]
 
         self.site.renderer.render(self, out, templates)
@@ -135,7 +135,7 @@ class Page:
         self.is_index = False
 
     def render(self):
-        out = os.path.join(self.site.site_dest, self.url)
+        out = os.path.join(self.site.site, self.url)
         templates = [self.metadata.get("template"), self.kind]
         self.site.renderer.render(self, out, templates)
 

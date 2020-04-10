@@ -16,14 +16,16 @@ class Site:
         with open(config, "r") as stream:
             self.config = yaml.safe_load(stream)
 
-        self.content_root = self.config["content"]["root"]
-        self.site_dest = self.config["site"]["destination"]
-        self.base_url = self.config["site"]["base_url"]
+        self.content = self.config["content"]["root"]
+        self.site = self.config["content"]["destination"]
+        self.static = self.config["content"]["static"]
+        self.templates = self.config["content"]["templates"]
+        self.base = self.config["site"]["base_url"]
+
         self.build_time = datetime.datetime.now()
 
         self.reader = readers.Reader(self)
         self.renderer = renderers.Renderer(self)
-        self.static = self.config["content"]["static"]
 
         self.top = self.walk()
         self.sections = self.top.subsections
@@ -34,7 +36,7 @@ class Site:
             self.categories.append(category)
 
     def walk(self):
-        walker = os.walk(self.content_root)
+        walker = os.walk(self.content)
         queue = []
         parent = None
 

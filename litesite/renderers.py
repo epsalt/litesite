@@ -22,7 +22,7 @@ class Renderer:
             raise KeyError("Backend not implemented {}".format(self.backend))
 
     def render(self, obj, out, names, pretty=True):
-        directory = self.site.config["content"]["templates"]
+        directory = self.site.templates
         templates = self.lookup(names)
 
         if not os.path.exists(os.path.dirname(out)):
