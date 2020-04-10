@@ -1,7 +1,10 @@
 """Site level config reading and publishing"""
 import datetime
+import logging
 import os
 import yaml
+
+from dirsync import sync
 
 import content
 import readers
@@ -20,6 +23,7 @@ class Site:
 
         self.reader = readers.Reader(self)
         self.renderer = renderers.Renderer(self)
+        self.static = self.config["content"]["static"]
 
         self.top = self.walk()
         self.sections = self.top.subsections
@@ -51,6 +55,12 @@ class Site:
         return top
 
     def publish(self):
+        if not os.path.exists(self.site):
+            os.makedirs(self.site)
+
+        logging.getLogger("dirsync").addHandler(logging.NullHandler())
+        sync(self.static, self.site, "sync")
+
         for page in self.pages:
             print(f"name: {page.name}, section: {page.section.name}, rel: {page.rel}")
             page.render()
