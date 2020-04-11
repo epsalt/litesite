@@ -3,6 +3,7 @@ import datetime
 import logging
 import os
 import yaml
+import sass
 
 from dirsync import sync
 
@@ -56,12 +57,18 @@ class Site:
 
         return top
 
+    def compile_style(self, out="css"):
+        style = self.config["content"].get("style")
+        if style:
+            sass.compile(dirname=(style, os.path.join(self.site, out)))
+
     def publish(self):
         if not os.path.exists(self.site):
             os.makedirs(self.site)
 
         logging.getLogger("dirsync").addHandler(logging.NullHandler())
         sync(self.static, self.site, "sync")
+        self.compile_style()
 
         for page in self.pages:
             print(f"name: {page.name}, section: {page.section.name}, rel: {page.rel}")

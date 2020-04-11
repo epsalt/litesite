@@ -1,5 +1,6 @@
 beautifulsoup4~=4.8.2
 dirsync~=2.2.4
 Jinja2~=2.11.1
+libsass~=0.19.4
 Markdown~=3.2.1
 markdown-full-yaml-metadata~=2.0.1
