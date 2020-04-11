@@ -62,14 +62,12 @@ class Site:
         if style:
             sass.compile(dirname=(style, os.path.join(self.site, out)))
 
-    def publish(self):
-        if not os.path.exists(self.site):
-            os.makedirs(self.site)
-
+    def sync_static(self):
         logging.getLogger("dirsync").addHandler(logging.NullHandler())
         sync(self.static, self.site, "sync")
         self.compile_style()
 
+    def render(self):
         for page in self.pages:
             print(f"name: {page.name}, section: {page.section.name}, rel: {page.rel}")
             page.render()
@@ -81,6 +79,14 @@ class Site:
             for item in category.items:
                 print(f"name: {item.value}, rel: {item.rel}")
                 item.render()
+
+    def publish(self):
+        if not os.path.exists(self.site):
+            os.makedirs(self.site)
+
+        self.sync_static()
+        self.compile_style()
+        self.render()
 
     @property
     def pages(self):
