@@ -117,7 +117,7 @@ class CategoryItem:
 
     @property
     def permalink(self):
-        return urllib.parse.urljoin(self.site.base_url, self.url)
+        return urllib.parse.urljoin(self.site.base, self.url)
 
 
 class Page:
@@ -175,7 +175,7 @@ class Page:
 
     @property
     def permalink(self):
-        return urllib.parse.urljoin(self.site.base_url, self.url)
+        return urllib.parse.urljoin(self.site.base, self.url)
 
     @property
     def title(self):
