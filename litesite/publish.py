@@ -23,7 +23,7 @@ class Site:
         self.templates = self.config["content"]["templates"]
         self.base = self.config["site"]["base_url"]
 
-        self.build_time = datetime.datetime.now()
+        self.build_time = datetime.datetime.now(datetime.timezone.utc)
 
         self.reader = readers.Reader(self)
         self.renderer = renderers.Renderer(self)

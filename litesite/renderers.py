@@ -1,8 +1,10 @@
+import datetime
 import email
 import itertools
 import os
 
 from bs4 import BeautifulSoup
+from dateutil.parser import parse
 from jinja2 import Environment, FileSystemLoader, Template
 
 
@@ -56,6 +58,7 @@ class Jinja:
         loader = FileSystemLoader(directory)
         env = Environment(loader=loader, auto_reload=True)
         env.filters["pubdate"] = cls.pubdate
+        env.filters["rfc3339"] = cls.rfc3339
 
         template = env.select_template(templates)
         text = template.render(**args)
@@ -67,5 +70,12 @@ class Jinja:
         return Template(template).render(args)
 
     @staticmethod
-    def pubdate(datetime):
-        return email.utils.formatdate(datetime.timestamp())
+    def pubdate(dt):
+        return email.utils.formatdate(dt.timestamp(), usegmt=True)
+
+    @staticmethod
+    def rfc3339(dt):
+        if not isinstance(dt, datetime.datetime):
+            dt = parse(dt)
+
+        return dt.isoformat()
