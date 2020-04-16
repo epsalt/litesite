@@ -3,7 +3,7 @@ import datetime
 import logging
 import os
 
-from dirsync import sync
+import dirsync
 import sass
 import yaml
 
@@ -83,7 +83,7 @@ class Site:
 
     def sync_static(self):
         logging.getLogger("dirsync").addHandler(logging.NullHandler())
-        sync(self.static, self.site, "sync")
+        dirsync.sync(self.static, self.site, "sync")
         self.compile_style()
 
     def render(self):
