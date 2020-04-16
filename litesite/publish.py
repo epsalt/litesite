@@ -2,10 +2,10 @@
 import datetime
 import logging
 import os
-import yaml
-import sass
 
 from dirsync import sync
+import sass
+import yaml
 
 import content
 import readers
@@ -57,10 +57,29 @@ class Site:
 
         return top
 
-    def compile_style(self, out="css"):
+    def compile_style(
+        self, out_dir="css", css_file="styles.min.css", map_file="styles.map"
+    ):
         style = self.config["content"].get("style")
+
         if style:
-            sass.compile(dirname=(style, os.path.join(self.site, out)))
+            css_string, map_string = sass.compile(
+                filename=style,
+                output_style="compressed",
+                source_map_filename=map_file,
+                source_map_contents=True,
+                source_map_embed=True,
+            )
+            out = os.path.join(self.site, out_dir)
+
+            if not os.path.exists(os.path.dirname(out)):
+                os.makedirs(os.path.dirname(out))
+
+            with open(os.path.join(out, css_file), "w") as f:
+                f.write(css_string)
+
+            with open(os.path.join(out, map_file), "w") as f:
+                f.write(map_string)
 
     def sync_static(self):
         logging.getLogger("dirsync").addHandler(logging.NullHandler())
