@@ -97,7 +97,7 @@ class CategoryItem:
 
     def render(self):
         out = os.path.join(self.site.site, self.rel)
-        templates = [self.kind, self.value, self.category.name]
+        templates = [self.value, self.kind, self.category.name]
 
         self.site.renderer.render(self, out, templates)
 
