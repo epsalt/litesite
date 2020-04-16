@@ -23,7 +23,7 @@ class Renderer:
         if self.renderer is None:
             raise KeyError("Backend not implemented {}".format(self.backend))
 
-    def render(self, obj, out, names, pretty=True):
+    def render(self, obj, out, names, pretty=False):
         directory = self.site.templates
         templates = self.lookup(names)
 
@@ -56,7 +56,9 @@ class Jinja:
     @classmethod
     def render_template(cls, directory, templates, args):
         loader = FileSystemLoader(directory)
-        env = Environment(loader=loader, auto_reload=True)
+        env = Environment(
+            loader=loader, auto_reload=True, trim_blocks=True, lstrip_blocks=True
+        )
         env.filters["pubdate"] = cls.pubdate
         env.filters["rfc3339"] = cls.rfc3339
 
