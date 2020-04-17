@@ -1,10 +1,66 @@
-import email
+import datetime
 import os
 import urllib.parse
 
 from dateutil.parser import parse
+import yaml
 
 import metadata
+import readers
+import renderers
+
+
+class Site:
+    def __init__(self, config):
+        with open(config, "r") as stream:
+            self.config = yaml.safe_load(stream)
+
+        self.content = self.config["content"]["root"]
+        self.site = self.config["content"]["destination"]
+        self.templates = self.config["content"]["templates"]
+        self.base = self.config["site"]["base_url"]
+
+        self.build_time = datetime.datetime.now(datetime.timezone.utc)
+
+        self.reader = readers.Reader(self)
+        self.renderer = renderers.Renderer(self)
+
+        self.top = self.walk()
+        self.sections = self.top.subsections
+
+        self.categories = []
+        for group, name in self.config["categories"].items():
+            category = Category(name, group, self)
+            self.categories.append(category)
+
+    def walk(self):
+        walker = os.walk(self.content)
+        queue = []
+        parent = None
+
+        for path, dirs, files in walker:
+            if queue:
+                parent = queue.pop()
+
+            section = Section(path, files, parent, self)
+
+            for _dir in dirs:
+                queue.append(section)
+
+            if parent:
+                parent.subsections.append(section)
+            else:
+                top = section
+
+        return top
+
+    @property
+    def pages(self):
+        sections = [self.top]
+        while sections:
+            section = sections.pop()
+            sections += section.subsections
+            yield from section.all_pages
 
 
 class Section:
