@@ -1,14 +1,11 @@
 """File readers"""
-
 import markdown
 
 
 class Reader:
     def __init__(self, site):
-        backends = {"markdown": Markdown}
         self.site = site
-        self.backend = site.config["content"]["reader"]
-        self.reader = backends.get(self.backend)
+        self.reader = Markdown
 
     def read(self, _file):
         args = {"site": self.site}

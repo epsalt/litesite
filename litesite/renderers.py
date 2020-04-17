@@ -11,17 +11,7 @@ from jinja2 import Environment, FileSystemLoader, Template
 class Renderer:
     def __init__(self, site):
         self.site = site
-
-        backends = {"jinja": Jinja}
-        try:
-            self.backend = site.config["content"]["renderer"]
-        except LookupError as err:
-            raise LookupError("Renderer backend not set in config") from err
-
-        self.renderer = backends.get(self.backend)
-
-        if self.renderer is None:
-            raise KeyError("Backend not implemented {}".format(self.backend))
+        self.renderer = Jinja
 
     def render(self, obj, out, names, pretty=False):
         directory = self.site.templates
