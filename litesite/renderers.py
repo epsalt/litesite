@@ -3,6 +3,7 @@ import os
 
 from dateutil.parser import parse
 from jinja2 import Environment, FileSystemLoader
+from urllib.parse import urljoin
 
 
 class Renderer:
@@ -14,12 +15,14 @@ class Renderer:
         self.env = Environment(loader=loader, trim_blocks=True, lstrip_blocks=True)
         self.env.filters["datetime"] = parse
         self.env.filters["isoformat"] = lambda dt: dt.isoformat()
+        self.env.filters["permalink"] = lambda s: urljoin(self.settings.base, s)
 
     def render(self, obj, out, files):
         template = self.lookup(files)
         args = {obj.kind: obj, "site": self.site, "settings": self.settings}
         text = template.render(**args)
 
+        out = os.path.join(self.settings.site, out)
         os.makedirs(os.path.dirname(out), exist_ok=True)
         with open(out, "w") as _file:
             _file.write(text)

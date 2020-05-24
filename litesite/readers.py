@@ -1,10 +1,12 @@
 """Markdown file reader"""
-from jinja2 import Template
+from jinja2 import Environment, Template
 import markdown
+
+import renderers
 
 
 class Reader:
-    def __init__(self, site):
+    def __init__(self, site, settings):
         extensions = [
             "markdown.extensions.extra",
             "markdown.extensions.smarty",
@@ -14,11 +16,13 @@ class Reader:
 
         self.site = site
         self.md = markdown.Markdown(extensions=extensions)
+        self.renderer = renderers.Renderer(site, settings)
 
     def preprocess(self, _file):
         args = {"site": self.site}
         with open(_file, "r") as f:
-            text = Template(f.read()).render(args)
+            template = self.renderer.env.from_string(f.read())
+            text = template.render(args)
 
         return text
 

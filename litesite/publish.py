@@ -2,6 +2,7 @@
 import os
 
 import content
+import renderers
 import settings
 
 
@@ -10,18 +11,20 @@ def publish(config):
     site = content.Site(sets)
     os.makedirs(sets.site, exist_ok=True)
 
-    render(site)
+    render(site, sets)
 
 
-def render(site):
+def render(site, sets):
+    renderer = renderers.Renderer(site, sets)
+
     for page in site.pages:
-        print(f"name: {page.name}, section: {page.section.name}, rel: {page.rel}")
-        page.render(site)
+        print(f"name: {page.name}, section: {page.section.name}")
+        renderer.render(page, page.out, page.templates)
 
     for category in site.categories:
-        print(f"name: {category.name}, rel: {category.rel}")
-        category.render(site)
+        print(f"name: {category.name}")
+        renderer.render(category, category.out, category.templates)
 
         for item in category.items:
-            print(f"name: {item.value}, rel: {item.rel}")
-            item.render(site)
+            print(f"name: {item.value}")
+            renderer.render(item, item.out, item.templates)

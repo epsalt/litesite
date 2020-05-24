@@ -12,16 +12,16 @@ import renderers
 class Site:
     def __init__(self, settings):
 
-        self.reader = readers.Reader(self)
+        self.reader = readers.Reader(self, settings)
         self.renderer = renderers.Renderer(self, settings)
         self.build_time = datetime.datetime.now(datetime.timezone.utc)
 
-        self.top = self._walk(settings, self.reader, self.renderer)
+        self.top = self._walk(settings, self.reader)
         self.sections = self.top.subsections
 
         self.categories = []
         for group, name in settings.categories.items():
-            category = Category(name, group, settings)
+            category = Category(name, group)
             for page in self.pages:
                 if page.metadata.get(group):
                     category.pages.append(page)
@@ -31,12 +31,12 @@ class Site:
                 for val in page.metadata.get(group):
                     vals.add(val)
 
-            category.items = [CategoryItem(category, val, settings) for val in vals]
+            category.items = [CategoryItem(category, val) for val in vals]
 
             self.categories.append(category)
 
     @staticmethod
-    def _walk(settings, reader, renderer):
+    def _walk(settings, reader):
         walker = os.walk(settings.content)
         queue = []
         parent = None
@@ -45,16 +45,15 @@ class Site:
             if queue:
                 parent = queue.pop()
 
-            section = Section(path, parent, settings)
+            rel = os.path.relpath(path, settings.content)
+            section = Section(rel, parent)
 
             for _file in files:
-                page = Page(
-                    os.path.join(path, _file), section, reader, renderer, settings,
-                )
+                page = Page(os.path.join(path, _file), section, reader, settings)
 
                 if _file == "_index.md":
                     section.index = page
-                    section.index.is_index = True
+                    page.is_index = True
                 else:
                     section.pages.append(page)
 
@@ -78,35 +77,24 @@ class Site:
 
 
 class Section:
-    def __init__(self, path, parent, settings):
-        self.path = path
-        self.name = os.path.basename(path)
+    def __init__(self, rel, parent):
+        self.rel = rel
+        self.name = os.path.basename(rel)
         self.subsections = []
         self.parent = parent
-        self.settings = settings
 
         self.index = None
         self.kind = "section"
         self.pages = []
 
     @property
-    def pagesby_default(self):
+    def sorted(self):
         default_keys = ("date", "title")
         sorted_pages = sorted(
             self.pages, key=lambda page: tuple(getattr(page, k) for k in default_keys)
         )
 
         return sorted_pages
-
-    @property
-    def pagesby_date(self):
-        sorted_pages = sorted(self.pages, key=lambda page: page.date)
-
-        return sorted_pages
-
-    @property
-    def rel(self):
-        return os.path.relpath(self.path, self.settings.content)
 
     @property
     def all_pages(self):
@@ -117,39 +105,26 @@ class Section:
 
 
 class Category:
-    def __init__(self, name, group, settings):
+    def __init__(self, name, group):
         self.name = name
         self.group = group
         self.kind = "category"
-        self.settings = settings
+
+        self.out = os.path.join(group, "index.html")
+        self.templates = [self.group, self.kind]
 
         self.pages = []
         self.items = []
 
-    def render(self, site):
-        """Render tag index page"""
-        out = os.path.join(self.settings.site, self.group, "index.html")
-        templates = [self.group, self.kind]
-
-        site.renderer.render(self, out, templates)
-
-    @property
-    def rel(self):
-        return os.path.join(self.group, self.name)
-
 
 class CategoryItem:
-    def __init__(self, category, value, settings):
+    def __init__(self, category, value):
         self.category = category
         self.value = value
         self.kind = "item"
-        self.settings = settings
 
-    def render(self, site):
-        out = os.path.join(self.settings.site, self.rel)
-        templates = [self.value, self.kind, self.category.name]
-
-        site.renderer.render(self, out, templates)
+        self.out = os.path.join(category.group, value)
+        self.templates = [self.value, self.kind, self.category.name]
 
     @property
     def pages(self):
@@ -157,59 +132,38 @@ class CategoryItem:
             if self.value in page.metadata.get(self.category.group):
                 yield page
 
-    @property
-    def rel(self):
-        return os.path.join(self.category.group, self.value)
-
-    @property
-    def url(self):
-        return urllib.parse.urljoin(self.category.group, self.value)
-
-    @property
-    def permalink(self):
-        return urllib.parse.urljoin(self.settings.base, self.url)
-
 
 class Page:
-    def __init__(self, _file, section, reader, renderer, settings):
+    def __init__(self, _file, section, reader, settings):
         self.content, self.metadata = reader.read(_file)
+        self.is_index = False
         self.kind = "page"
         self.settings = settings
-        self.renderer = renderer
 
         self.section = section
-        path, self.ext = os.path.splitext(_file)
+        path, _ = os.path.splitext(_file)
         self.name = os.path.basename(path)
 
-        self.is_index = False
-
-    def render(self, site):
-        out = os.path.join(self.settings.site, self.url)
-        templates = [self.metadata.get("template"), self.kind]
-        site.renderer.render(self, out, templates)
+        self.templates = [self.metadata.get("template"), self.kind]
 
     @property
     def nextin_section(self):
-        sorted_pages = self.section.pagesby_default
-
         try:
-            loc = sorted_pages.index(self)
-            return sorted_pages[loc + 1]
+            loc = self.section.sorted.index(self)
+            return self.section.sorted[loc + 1]
 
         except IndexError:
             return None
 
     @property
     def previn_section(self):
-        sorted_pages = self.section.pagesby_default
-
-        loc = sorted_pages.index(self)
-        prev = sorted_pages[loc - 1] if loc else None
+        loc = self.section.sorted.index(self)
+        prev = self.section.sorted[loc - 1] if loc else None
 
         return prev
 
     @property
-    def url(self):
+    def out(self):
         if self.section.name in self.settings.url_format.keys():
             template = self.settings.url_format[self.section.name]
         else:
@@ -217,14 +171,6 @@ class Page:
 
         args = {self.kind: self}
         return Template(template).render(args)
-
-    @property
-    def rel(self):
-        return os.path.join(self.section.rel, self.name)
-
-    @property
-    def permalink(self):
-        return urllib.parse.urljoin(self.settings.base, self.url)
 
     @property
     def title(self):
