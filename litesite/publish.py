@@ -2,13 +2,13 @@
 import os
 
 import content
+import settings
 
 
 def publish(config):
-    site = content.Site(config)
-
-    if not os.path.exists(site.site):
-        os.makedirs(site.site)
+    sets = settings.Settings(config)
+    site = content.Site(sets)
+    os.makedirs(sets.site, exist_ok=True)
 
     render(site)
 
@@ -16,12 +16,12 @@ def publish(config):
 def render(site):
     for page in site.pages:
         print(f"name: {page.name}, section: {page.section.name}, rel: {page.rel}")
-        page.render()
+        page.render(site)
 
     for category in site.categories:
         print(f"name: {category.name}, rel: {category.rel}")
-        category.render()
+        category.render(site)
 
         for item in category.items:
             print(f"name: {item.value}, rel: {item.rel}")
-            item.render()
+            item.render(site)

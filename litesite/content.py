@@ -3,38 +3,41 @@ import os
 import urllib.parse
 
 from dateutil.parser import parse
-import yaml
+from jinja2 import Template
 
-import metadata
 import readers
 import renderers
 
 
 class Site:
-    def __init__(self, config):
-        with open(config, "r") as stream:
-            self.config = yaml.safe_load(stream)
-
-        self.content = self.config["content"]["root"]
-        self.site = self.config["content"]["destination"]
-        self.templates = self.config["content"]["templates"]
-        self.base = self.config["site"]["base_url"]
-
-        self.build_time = datetime.datetime.now(datetime.timezone.utc)
+    def __init__(self, settings):
 
         self.reader = readers.Reader(self)
-        self.renderer = renderers.Renderer(self)
+        self.renderer = renderers.Renderer(self, settings)
+        self.build_time = datetime.datetime.now(datetime.timezone.utc)
 
-        self.top = self.walk()
+        self.top = self._walk(settings, self.reader, self.renderer)
         self.sections = self.top.subsections
 
         self.categories = []
-        for group, name in self.config["categories"].items():
-            category = Category(name, group, self)
+        for group, name in settings.categories.items():
+            category = Category(name, group, settings)
+            for page in self.pages:
+                if page.metadata.get(group):
+                    category.pages.append(page)
+
+            vals = set()
+            for page in category.pages:
+                for val in page.metadata.get(group):
+                    vals.add(val)
+
+            category.items = [CategoryItem(category, val, settings) for val in vals]
+
             self.categories.append(category)
 
-    def walk(self):
-        walker = os.walk(self.content)
+    @staticmethod
+    def _walk(settings, reader, renderer):
+        walker = os.walk(settings.content)
         queue = []
         parent = None
 
@@ -42,7 +45,18 @@ class Site:
             if queue:
                 parent = queue.pop()
 
-            section = Section(path, files, parent, self)
+            section = Section(path, parent, settings)
+
+            for _file in files:
+                page = Page(
+                    os.path.join(path, _file), section, reader, renderer, settings,
+                )
+
+                if _file == "_index.md":
+                    section.index = page
+                    section.index.is_index = True
+                else:
+                    section.pages.append(page)
 
             for _dir in dirs:
                 queue.append(section)
@@ -64,25 +78,16 @@ class Site:
 
 
 class Section:
-    def __init__(self, path, files, parent, site):
+    def __init__(self, path, parent, settings):
         self.path = path
-        self.site = site
         self.name = os.path.basename(path)
         self.subsections = []
         self.parent = parent
+        self.settings = settings
 
         self.index = None
         self.kind = "section"
         self.pages = []
-
-        for _file in files:
-            page = Page(os.path.join(path, _file), self, site)
-
-            if _file == "_index.md":
-                self.index = page
-                self.index.is_index = True
-            else:
-                self.pages.append(page)
 
     @property
     def pagesby_default(self):
@@ -101,7 +106,7 @@ class Section:
 
     @property
     def rel(self):
-        return os.path.relpath(self.path, self.site.content)
+        return os.path.relpath(self.path, self.settings.content)
 
     @property
     def all_pages(self):
@@ -112,50 +117,39 @@ class Section:
 
 
 class Category:
-    def __init__(self, name, group, site):
+    def __init__(self, name, group, settings):
         self.name = name
         self.group = group
-        self.site = site
         self.kind = "category"
+        self.settings = settings
 
-        vals = set()
-        for page in self.pages:
-            for val in page.metadata.get(self.group):
-                vals.add(val)
+        self.pages = []
+        self.items = []
 
-        self.items = [CategoryItem(self, val, site) for val in vals]
-
-    def render(self):
+    def render(self, site):
         """Render tag index page"""
-        out = os.path.join(self.site.site, self.group, "index.html")
+        out = os.path.join(self.settings.site, self.group, "index.html")
         templates = [self.group, self.kind]
 
-        self.site.renderer.render(self, out, templates)
+        site.renderer.render(self, out, templates)
 
     @property
     def rel(self):
         return os.path.join(self.group, self.name)
 
-    @property
-    def pages(self):
-        """All pages with category present in metadata"""
-        for page in self.site.pages:
-            if page.metadata.get(self.group):
-                yield page
-
 
 class CategoryItem:
-    def __init__(self, category, value, site):
+    def __init__(self, category, value, settings):
         self.category = category
         self.value = value
-        self.site = site
         self.kind = "item"
+        self.settings = settings
 
-    def render(self):
-        out = os.path.join(self.site.site, self.rel)
+    def render(self, site):
+        out = os.path.join(self.settings.site, self.rel)
         templates = [self.value, self.kind, self.category.name]
 
-        self.site.renderer.render(self, out, templates)
+        site.renderer.render(self, out, templates)
 
     @property
     def pages(self):
@@ -173,27 +167,26 @@ class CategoryItem:
 
     @property
     def permalink(self):
-        return urllib.parse.urljoin(self.site.base, self.url)
+        return urllib.parse.urljoin(self.settings.base, self.url)
 
 
 class Page:
-    def __init__(self, _file, section, site):
-        read = site.reader.read(_file)
-        self.content = read.content
-        self.metadata = metadata.parse(read.meta)
+    def __init__(self, _file, section, reader, renderer, settings):
+        self.content, self.metadata = reader.read(_file)
         self.kind = "page"
+        self.settings = settings
+        self.renderer = renderer
 
         self.section = section
-        self.site = site
         path, self.ext = os.path.splitext(_file)
         self.name = os.path.basename(path)
 
         self.is_index = False
 
-    def render(self):
-        out = os.path.join(self.site.site, self.url)
+    def render(self, site):
+        out = os.path.join(self.settings.site, self.url)
         templates = [self.metadata.get("template"), self.kind]
-        self.site.renderer.render(self, out, templates)
+        site.renderer.render(self, out, templates)
 
     @property
     def nextin_section(self):
@@ -217,13 +210,13 @@ class Page:
 
     @property
     def url(self):
-        if self.section.name in self.site.config["url_format"].keys():
-            template = self.site.config["url_format"][self.section.name]
+        if self.section.name in self.settings.url_format.keys():
+            template = self.settings.url_format[self.section.name]
         else:
-            template = self.site.config["url_format"]["_default"]
+            template = self.settings.url_format["_default"]
 
         args = {self.kind: self}
-        return self.site.renderer.render_string(template, args)
+        return Template(template).render(args)
 
     @property
     def rel(self):
@@ -231,7 +224,7 @@ class Page:
 
     @property
     def permalink(self):
-        return urllib.parse.urljoin(self.site.base, self.url)
+        return urllib.parse.urljoin(self.settings.base, self.url)
 
     @property
     def title(self):

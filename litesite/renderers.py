@@ -1,73 +1,37 @@
-import datetime
-import email
 import itertools
 import os
 
-from bs4 import BeautifulSoup
 from dateutil.parser import parse
-from jinja2 import Environment, FileSystemLoader, Template
+from jinja2 import Environment, FileSystemLoader
 
 
 class Renderer:
-    def __init__(self, site):
+    def __init__(self, site, settings):
         self.site = site
-        self.renderer = Jinja
+        self.settings = settings
 
-    def render(self, obj, out, names, pretty=False):
-        directory = self.site.templates
-        templates = self.lookup(names)
+        loader = FileSystemLoader(settings.templates)
+        self.env = Environment(loader=loader, trim_blocks=True, lstrip_blocks=True)
+        self.env.filters["datetime"] = parse
+        self.env.filters["isoformat"] = lambda dt: dt.isoformat()
 
-        if not os.path.exists(os.path.dirname(out)):
-            os.makedirs(os.path.dirname(out))
+    def render(self, obj, out, files):
+        template = self.lookup(files)
+        args = {obj.kind: obj, "site": self.site, "settings": self.settings}
+        text = template.render(**args)
 
-        args = {obj.kind: obj, "site": self.site}
-        text = self.renderer.render_template(directory, templates, args)
-
-        if pretty:
-            text = BeautifulSoup(text, "html.parser").prettify(formatter="html5")
-
+        os.makedirs(os.path.dirname(out), exist_ok=True)
         with open(out, "w") as _file:
             _file.write(text)
 
-    def render_string(self, template, args):
-        return self.renderer.render_string(template, args)
-
-    @staticmethod
-    def lookup(files):
-        exts = [".html", ".html.jinja", ".xml", ".xml.jinja"]
-        templates = [
-            str(f) + ext for f, ext in itertools.product(files, exts) if f is not None
-        ]
-
-        return templates
-
-
-class Jinja:
-    @classmethod
-    def render_template(cls, directory, templates, args):
-        loader = FileSystemLoader(directory)
-        env = Environment(
-            loader=loader, auto_reload=True, trim_blocks=True, lstrip_blocks=True
-        )
-        env.filters["pubdate"] = cls.pubdate
-        env.filters["rfc3339"] = cls.rfc3339
-
-        template = env.select_template(templates)
-        text = template.render(**args)
-
         return text
 
-    @staticmethod
-    def render_string(template, args):
-        return Template(template).render(args)
+    def lookup(self, files):
+        exts = [".html", ".xml"]
 
-    @staticmethod
-    def pubdate(dt):
-        return email.utils.formatdate(dt.timestamp(), usegmt=True)
+        templates = []
+        for f, ext in itertools.product(files, exts):
+            if f is not None:
+                templates.append(str(f) + ext)
 
-    @staticmethod
-    def rfc3339(dt):
-        if not isinstance(dt, datetime.datetime):
-            dt = parse(dt)
-
-        return dt.isoformat()
+        return self.env.select_template(templates)
