@@ -1,14 +1,14 @@
 """Site level config reading and publishing"""
 import os
 
-import content
+from _site import Site
 import renderers
 import settings
 
 
 def publish(config):
     sets = settings.Settings(config)
-    site = content.Site(sets)
+    site = Site(sets)
     os.makedirs(sets.site, exist_ok=True)
 
     render(site, sets)
