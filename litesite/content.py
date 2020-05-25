@@ -71,7 +71,7 @@ class Page:
             metadata["date"] = parse(metadata["date"])
 
     @property
-    def nextin_section(self):
+    def next(self):
         try:
             loc = self.section.sorted.index(self)
             return self.section.sorted[loc + 1]
@@ -80,7 +80,7 @@ class Page:
             return None
 
     @property
-    def previn_section(self):
+    def prev(self):
         loc = self.section.sorted.index(self)
         prev = self.section.sorted[loc - 1] if loc else None
 
