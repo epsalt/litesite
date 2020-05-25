@@ -1,9 +1,7 @@
 import datetime
 import os
-import urllib.parse
 
 from dateutil.parser import parse
-from jinja2 import Template
 
 import readers
 import renderers
@@ -14,9 +12,10 @@ class Site:
 
         self.reader = readers.Reader(self, settings)
         self.renderer = renderers.Renderer(self, settings)
+        self.settings = settings
         self.build_time = datetime.datetime.now(datetime.timezone.utc)
 
-        self.top = self._walk(settings, self.reader)
+        self.top = self._walk()
         self.sections = self.top.subsections
 
         self.categories = []
@@ -35,9 +34,8 @@ class Site:
 
             self.categories.append(category)
 
-    @staticmethod
-    def _walk(settings, reader):
-        walker = os.walk(settings.content)
+    def _walk(self):
+        walker = os.walk(self.settings.content)
         queue = []
         parent = None
 
@@ -45,15 +43,15 @@ class Site:
             if queue:
                 parent = queue.pop()
 
-            rel = os.path.relpath(path, settings.content)
+            rel = os.path.relpath(path, self.settings.content)
             section = Section(rel, parent)
 
             for _file in files:
-                page = Page(os.path.join(path, _file), section, reader, settings)
+                fname = os.path.join(path, _file)
+                page = Page(fname, section, self.reader, self.renderer, self.settings)
 
-                if _file == "_index.md":
+                if page.is_index:
                     section.index = page
-                    page.is_index = True
                 else:
                     section.pages.append(page)
 
@@ -78,23 +76,20 @@ class Site:
 
 class Section:
     def __init__(self, rel, parent):
-        self.rel = rel
         self.name = os.path.basename(rel)
-        self.subsections = []
+        self.kind = "section"
         self.parent = parent
+        self.rel = rel
 
         self.index = None
-        self.kind = "section"
+        self.subsections = []
         self.pages = []
 
     @property
     def sorted(self):
         default_keys = ("date", "title")
-        sorted_pages = sorted(
-            self.pages, key=lambda page: tuple(getattr(page, k) for k in default_keys)
-        )
-
-        return sorted_pages
+        key = lambda page: tuple(page.metadata[k] for k in default_keys)
+        return sorted(self.pages, key=key)
 
     @property
     def all_pages(self):
@@ -110,20 +105,20 @@ class Category:
         self.group = group
         self.kind = "category"
 
-        self.out = os.path.join(group, "index.html")
-        self.templates = [self.group, self.kind]
-
         self.pages = []
         self.items = []
+
+        self.url = os.path.join(group, "index.html")
+        self.templates = [self.group, self.kind]
 
 
 class CategoryItem:
     def __init__(self, category, value):
-        self.category = category
         self.value = value
         self.kind = "item"
+        self.category = category
 
-        self.out = os.path.join(category.group, value)
+        self.url = os.path.join(category.group, value)
         self.templates = [self.value, self.kind, self.category.name]
 
     @property
@@ -134,16 +129,17 @@ class CategoryItem:
 
 
 class Page:
-    def __init__(self, _file, section, reader, settings):
+    def __init__(self, _file, section, reader, renderer, settings):
+        self.name = os.path.basename(os.path.splitext(_file)[0])
         self.content, self.metadata = reader.read(_file)
-        self.is_index = False
         self.kind = "page"
-        self.settings = settings
-
         self.section = section
-        path, _ = os.path.splitext(_file)
-        self.name = os.path.basename(path)
+        self.is_index = _file == "index.md"
 
+        if self.metadata.get("date"):
+            self.metadata["date"] = parse(self.metadata["date"])
+
+        self.url = self.urlify(section, settings, renderer)
         self.templates = [self.metadata.get("template"), self.kind]
 
     @property
@@ -162,29 +158,11 @@ class Page:
 
         return prev
 
-    @property
-    def out(self):
-        if self.section.name in self.settings.url_format.keys():
-            template = self.settings.url_format[self.section.name]
+    def urlify(self, section, settings, renderer):
+        if section.name in settings.url_format.keys():
+            string = settings.url_format[section.name]
         else:
-            template = self.settings.url_format["_default"]
+            string = settings.url_format["_default"]
 
         args = {self.kind: self}
-        return Template(template).render(args)
-
-    @property
-    def title(self):
-        return self.metadata.get("title")
-
-    @property
-    def slug(self):
-        return self.metadata.get("slug")
-
-    @property
-    def date(self):
-        date_string = self.metadata["date"]
-
-        if not date_string:
-            return None
-
-        return parse(date_string)
+        return renderer.render_from_string(string, args)

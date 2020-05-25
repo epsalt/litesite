@@ -2,7 +2,7 @@
 from jinja2 import Environment, Template
 import markdown
 
-import renderers
+from renderers import Renderer
 
 
 class Reader:
@@ -16,14 +16,14 @@ class Reader:
 
         self.site = site
         self.md = markdown.Markdown(extensions=extensions)
-        self.renderer = renderers.Renderer(site, settings)
+        self.renderer = Renderer(site, settings)
 
     def preprocess(self, _file):
         args = {"site": self.site}
         with open(_file, "r") as f:
-            template = self.renderer.env.from_string(f.read())
-            text = template.render(args)
+            string = f.read()
 
+        text = self.renderer.render_from_string(string, args)
         return text
 
     def read(self, _file):

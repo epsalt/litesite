@@ -38,3 +38,9 @@ class Renderer:
                 templates.append(str(f) + ext)
 
         return self.env.select_template(templates)
+
+    def render_from_string(self, string, args):
+        template = self.env.from_string(string)
+        text = template.render(args)
+
+        return text
