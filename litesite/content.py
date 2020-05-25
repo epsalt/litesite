@@ -88,10 +88,10 @@ class Page:
         return prev
 
     def urlify(self, section, settings, renderer):
-        if section.name in settings.url_format.keys():
-            string = settings.url_format[section.name]
+        if section.name in settings["url_format"].keys():
+            string = settings["url_format"][section.name]
         else:
-            string = settings.url_format["_default"]
+            string = settings["url_format"]["_default"]
 
         args = {self.kind: self}
         return renderer.render_from_string(string, args)

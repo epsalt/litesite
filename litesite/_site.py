@@ -20,7 +20,7 @@ class Site:
         self.categories = list(self._build_categories())
 
     def _walk_content(self):
-        walker = os.walk(self.settings.content)
+        walker = os.walk(self.settings["content"])
         queue = []
         parent = None
 
@@ -41,7 +41,7 @@ class Site:
         return top
 
     def _build_section(self, path, files, parent):
-        rel = os.path.relpath(path, self.settings.content)
+        rel = os.path.relpath(path, self.settings["content"])
         section = content.Section(rel, parent)
 
         for _file in files:
@@ -58,7 +58,7 @@ class Site:
         return section
 
     def _build_categories(self):
-        for group, name in self.settings.categories.items():
+        for group, name in self.settings["categories"].items():
             category = content.Category(name, group)
             for page in self.pages:
                 if page.metadata.get(group):

@@ -11,18 +11,18 @@ class Renderer:
         self.site = site
         self.settings = settings
 
-        loader = FileSystemLoader(settings.templates)
+        loader = FileSystemLoader(settings["templates"])
         self.env = Environment(loader=loader, trim_blocks=True, lstrip_blocks=True)
         self.env.filters["datetime"] = parse
         self.env.filters["isoformat"] = lambda dt: dt.isoformat()
-        self.env.filters["permalink"] = lambda s: urljoin(self.settings.base, s)
+        self.env.filters["permalink"] = lambda s: urljoin(self.settings["base"], s)
 
     def render(self, obj, out, files):
         template = self.lookup(files)
         args = {obj.kind: obj, "site": self.site, "settings": self.settings}
         text = template.render(**args)
 
-        out = os.path.join(self.settings.site, out)
+        out = os.path.join(self.settings["site"], out)
         os.makedirs(os.path.dirname(out), exist_ok=True)
         with open(out, "w") as _file:
             _file.write(text)

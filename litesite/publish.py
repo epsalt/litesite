@@ -1,17 +1,19 @@
 """Site level config reading and publishing"""
 import os
 
+import yaml
+
 from _site import Site
 import renderers
-import settings
 
 
 def publish(config):
-    sets = settings.Settings(config)
-    site = Site(sets)
-    os.makedirs(sets.site, exist_ok=True)
+    with open(config, "r") as stream:
+        settings = yaml.safe_load(stream)
 
-    render(site, sets)
+    site = Site(settings)
+    os.makedirs(settings["site"], exist_ok=True)
+    render(site, settings)
 
 
 def render(site, sets):
