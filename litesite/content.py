@@ -1,11 +1,9 @@
-import os
-
 from dateutil.parser import parse
 
 
 class Section:
-    def __init__(self, rel, parent):
-        self.name = os.path.basename(rel)
+    def __init__(self, name, rel, parent):
+        self.name = name
         self.kind = "section"
         self.parent = parent
         self.rel = rel
@@ -37,7 +35,7 @@ class Category:
         self.pages = []
         self.items = []
 
-        self.url = os.path.join(group, "index.html")
+        self.url = f"{self.group}/{self.name}"
         self.templates = [self.group, self.kind]
 
 
@@ -47,7 +45,7 @@ class CategoryItem:
         self.kind = "item"
         self.category = category
 
-        self.url = os.path.join(category.group, value)
+        self.url = f"{self.category.name}/{self.value}"
         self.templates = [self.value, self.kind, self.category.name]
 
     @property
@@ -58,18 +56,19 @@ class CategoryItem:
 
 
 class Page:
-    def __init__(self, _file, section, reader, renderer, settings):
-        self.name = os.path.basename(os.path.splitext(_file)[0])
-        self.content, self.metadata = reader.read(_file)
+    def __init__(self, name, content, metadata, section):
+        self.name = name
+        self.content = content
+        self.metadata = metadata
         self.kind = "page"
         self.section = section
-        self.is_index = _file == "index.md"
+        self.is_index = name == "_index"
+
+        self.url = f"{self.section.rel}/{self.metadata['slug']}"
+        self.templates = [self.metadata.get("template"), self.kind]
 
         if self.metadata.get("date"):
-            self.metadata["date"] = parse(self.metadata["date"])
-
-        self.url = self.urlify(section, settings, renderer)
-        self.templates = [self.metadata.get("template"), self.kind]
+            metadata["date"] = parse(metadata["date"])
 
     @property
     def nextin_section(self):
@@ -86,12 +85,3 @@ class Page:
         prev = self.section.sorted[loc - 1] if loc else None
 
         return prev
-
-    def urlify(self, section, settings, renderer):
-        if section.name in settings["url_format"].keys():
-            string = settings["url_format"][section.name]
-        else:
-            string = settings["url_format"]["_default"]
-
-        args = {self.kind: self}
-        return renderer.render_from_string(string, args)

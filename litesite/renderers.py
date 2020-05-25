@@ -1,9 +1,9 @@
 import itertools
 import os
+from urllib.parse import urljoin
 
 from dateutil.parser import parse
 from jinja2 import Environment, FileSystemLoader
-from urllib.parse import urljoin
 
 
 class Renderer:

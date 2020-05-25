@@ -42,13 +42,11 @@ class Site:
 
     def _build_section(self, path, files, parent):
         rel = os.path.relpath(path, self.settings["content"])
-        section = content.Section(rel, parent)
+        name = os.path.basename(rel)
+        section = content.Section(name, rel, parent)
 
         for _file in files:
-            fname = os.path.join(path, _file)
-            page = content.Page(
-                fname, section, self.reader, self.renderer, self.settings
-            )
+            page = self._build_page(path, _file, section)
 
             if page.is_index:
                 section.index = page
@@ -56,6 +54,19 @@ class Site:
                 section.pages.append(page)
 
         return section
+
+    def _build_page(self, path, _file, section):
+        fname = os.path.join(path, _file)
+        name = os.path.basename(os.path.splitext(_file)[0])
+        text, metadata = self.reader.read(fname)
+
+        page = content.Page(name, text, metadata, section)
+
+        ## Set custom URLs
+        if section.name in self.settings["url_format"].keys():
+            page.url = self._urlify(page, section)
+
+        return page
 
     def _build_categories(self):
         for group, name in self.settings["categories"].items():
@@ -72,6 +83,14 @@ class Site:
             category.items = [content.CategoryItem(category, val) for val in vals]
 
             yield category
+
+    def _urlify(self, page, section):
+        template = self.settings["url_format"][section.name]
+        args = {page.kind: page}
+
+        url = self.renderer.render_from_string(template, args)
+
+        return url
 
     @property
     def pages(self):
