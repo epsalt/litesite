@@ -3,7 +3,7 @@ import os
 
 import yaml
 
-from _site import Site
+from content import Site
 import renderers
 
 
@@ -12,12 +12,12 @@ def publish(config):
         settings = yaml.safe_load(stream)
 
     site = Site(settings)
-    os.makedirs(settings["site"], exist_ok=True)
     render(site, settings)
 
 
-def render(site, sets):
-    renderer = renderers.Renderer(site, sets)
+def render(site, settings):
+    os.makedirs(settings["site"], exist_ok=True)
+    renderer = renderers.Renderer(site, settings)
 
     for page in site.pages:
         print(f"name: {page.name}, section: {page.section.name}")

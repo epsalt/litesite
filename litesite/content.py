@@ -1,4 +1,30 @@
+import datetime
+
 from dateutil.parser import parse
+
+from builder import load_content, load_categories
+import readers
+import renderers
+
+
+class Site:
+    def __init__(self, settings):
+        self.reader = readers.Reader(self, settings)
+        self.renderer = renderers.Renderer(self, settings)
+        self.settings = settings
+        self.build_time = datetime.datetime.now(datetime.timezone.utc)
+
+        self.top = load_content(self)
+        self.sections = self.top.subsections
+        self.categories = load_categories(self)
+
+    @property
+    def pages(self):
+        sections = [self.top]
+        while sections:
+            section = sections.pop()
+            sections += section.subsections
+            yield from section.all_pages
 
 
 class Section:
