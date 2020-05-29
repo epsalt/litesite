@@ -2,11 +2,11 @@
 from jinja2 import Environment, Template
 import markdown
 
-from renderers import Renderer
+from litesite.renderers import ContentRenderer
 
 
 class Reader:
-    def __init__(self, site, settings):
+    def __init__(self, settings):
         extensions = [
             "markdown.extensions.extra",
             "markdown.extensions.smarty",
@@ -14,16 +14,14 @@ class Reader:
             "full_yaml_metadata",
         ]
 
-        self.site = site
         self.md = markdown.Markdown(extensions=extensions)
-        self.renderer = Renderer(site, settings)
+        self.renderer = ContentRenderer(settings)
 
     def preprocess(self, _file):
-        args = {"site": self.site}
         with open(_file, "r") as f:
             string = f.read()
 
-        text = self.renderer.render_from_string(string, args)
+        text = self.renderer.render_from_string(string)
         return text
 
     def read(self, _file):

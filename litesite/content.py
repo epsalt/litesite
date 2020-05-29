@@ -2,21 +2,20 @@ import datetime
 
 from dateutil.parser import parse
 
-from builder import load_content, load_categories
-import readers
-import renderers
+from litesite.renderers import URLRenderer
 
 
 class Site:
     def __init__(self, settings):
-        self.reader = readers.Reader(self, settings)
-        self.renderer = renderers.Renderer(self, settings)
         self.settings = settings
         self.build_time = datetime.datetime.now(datetime.timezone.utc)
 
-        self.top = load_content(self)
-        self.sections = self.top.subsections
-        self.categories = load_categories(self)
+        self.top = None
+        self.categories = []
+
+    @property
+    def sections(self):
+        return self.top.subsections
 
     @property
     def pages(self):
@@ -28,11 +27,11 @@ class Site:
 
 
 class Section:
-    def __init__(self, name, rel, parent):
+    def __init__(self, name, rel, parent, override):
         self.name = name
-        self.kind = "section"
         self.parent = parent
         self.rel = rel
+        self.override = override
 
         self.index = None
         self.subsections = []
@@ -56,23 +55,33 @@ class Category:
     def __init__(self, name, group):
         self.name = name
         self.group = group
-        self.kind = "category"
 
         self.pages = []
         self.items = []
 
-        self.url = f"{self.group}/{self.name}"
-        self.templates = [self.group, self.kind]
+        self.templates = [self.group, "category"]
+
+    @property
+    def url(self):
+        template = "{{ category.group }}/{{ category.name }}"
+        args = {"category": self}
+
+        return URLRenderer(template, args).url
 
 
 class CategoryItem:
     def __init__(self, category, value):
         self.value = value
-        self.kind = "item"
         self.category = category
 
-        self.url = f"{self.category.name}/{self.value}"
-        self.templates = [self.value, self.kind, self.category.name]
+        self.templates = [self.value, "item", self.category.name]
+
+    @property
+    def url(self):
+        template = "{{ item.category.name }}/{{ item.value }}"
+        args = {"item": self}
+
+        return URLRenderer(template, args).url
 
     @property
     def pages(self):
@@ -86,15 +95,23 @@ class Page:
         self.name = name
         self.content = content
         self.metadata = metadata
-        self.kind = "page"
         self.section = section
         self.is_index = name == "_index"
 
-        self.url = f"{self.section.rel}/{self.metadata['slug']}"
-        self.templates = [self.metadata.get("template"), self.kind]
+        self.templates = [self.metadata.get("template"), "page"]
 
         if self.metadata.get("date"):
             metadata["date"] = parse(metadata["date"])
+
+    @property
+    def url(self):
+        template = "{{ page.section.rel }}/{{ page|slug }}"
+        args = {"page": self}
+
+        if self.section.override:
+            template = self.section.override
+
+        return URLRenderer(template, args).url
 
     @property
     def next(self):
