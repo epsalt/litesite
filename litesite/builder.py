@@ -2,19 +2,21 @@ import os
 
 from litesite.content import Category, CategoryItem, Page, Section, Site
 from litesite.readers import Reader
+from litesite.renderers import ContentRenderer
 
 
 def build_site(settings):
     site = Site(settings)
-    reader = Reader(settings)
+    reader = Reader()
+    renderer = ContentRenderer(settings)
 
-    site.top = build_sections(site.settings, reader)
+    site.top = build_sections(site.settings, reader, renderer)
     site.categories = build_categories(site.pages, settings)
 
     return site
 
 
-def build_sections(settings, reader):
+def build_sections(settings, reader, renderer):
     walker = os.walk(settings["content"])
     queue = []
     parent = None
@@ -31,8 +33,11 @@ def build_sections(settings, reader):
 
         ## Build pages
         for _file in files:
+            with open(os.path.join(path, _file), "r") as f:
+                text = renderer.render_from_string(f.read())
+
+            text, metadata = reader.read(text)
             name = os.path.basename(os.path.splitext(_file)[0])
-            text, metadata = reader.read(os.path.join(path, _file))
             page = Page(name, text, metadata, section)
 
             if page.is_index:

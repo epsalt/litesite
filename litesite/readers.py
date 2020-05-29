@@ -2,11 +2,9 @@
 from jinja2 import Environment, Template
 import markdown
 
-from litesite.renderers import ContentRenderer
-
 
 class Reader:
-    def __init__(self, settings):
+    def __init__(self):
         extensions = [
             "markdown.extensions.extra",
             "markdown.extensions.smarty",
@@ -15,17 +13,8 @@ class Reader:
         ]
 
         self.md = markdown.Markdown(extensions=extensions)
-        self.renderer = ContentRenderer(settings)
 
-    def preprocess(self, _file):
-        with open(_file, "r") as f:
-            string = f.read()
-
-        text = self.renderer.render_from_string(string)
-        return text
-
-    def read(self, _file):
-        text = self.preprocess(_file)
+    def read(self, text):
         content = self.md.convert(text)
         meta = self.md.Meta
 
