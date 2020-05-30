@@ -61,12 +61,8 @@ class Category:
 
         self.templates = [self.group, "category"]
 
-    @property
-    def url(self):
-        template = "{{ category.group }}/{{ category.name }}"
-        args = {"category": self}
-
-        return URLRenderer(template, args).url
+        url_template = "{{ category.group }}/{{ category.name }}"
+        self.url = URLRenderer(url_template, {"category": self}).url
 
 
 class CategoryItem:
@@ -76,12 +72,8 @@ class CategoryItem:
 
         self.templates = [self.value, "item", self.category.name]
 
-    @property
-    def url(self):
-        template = "{{ item.category.name }}/{{ item.value }}"
-        args = {"item": self}
-
-        return URLRenderer(template, args).url
+        url_template = "{{ item.category.name }}/{{ item.value }}"
+        self.url = URLRenderer(url_template, {"item": self}).url
 
     @property
     def pages(self):
@@ -103,15 +95,9 @@ class Page:
         if self.metadata.get("date"):
             metadata["date"] = parse(metadata["date"])
 
-    @property
-    def url(self):
-        template = "{{ page.section.rel }}/{{ page|slug }}"
-        args = {"page": self}
-
-        if self.section.override:
-            template = self.section.override
-
-        return URLRenderer(template, args).url
+        default = "{{ page.section.rel }}/{{ page|slug }}"
+        url_template = self.section.override if self.section.override else default
+        self.url = URLRenderer(url_template, {"page": self}).url
 
     @property
     def next(self):
