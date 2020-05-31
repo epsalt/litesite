@@ -5,67 +5,105 @@ from litesite.readers import Reader
 from litesite.renderers import ContentRenderer
 
 
-def build_site(settings):
-    site = Site(settings)
-    reader = Reader()
-    renderer = ContentRenderer(settings)
+class Builder:
+    def __init__(self, settings):
+        self.site = Site(settings)
+        self.settings = settings
+        self.reader = Reader()
+        self.renderer = ContentRenderer(settings)
 
-    site.top = build_sections(site.settings, reader, renderer)
-    site.categories = build_categories(site.pages, settings)
+    def build_site(self):
+        content = self.settings["content"]
+        overrides = self.settings.get("url")
+        cats = self.settings.get("categories")
 
-    return site
+        self.site.top = self._build_sections(
+            content, overrides, self.reader, self.renderer
+        )
+        self.site.categories = self._build_categories(cats, self.site.pages)
 
+        return self.site
 
-def build_sections(settings, reader, renderer):
-    walker = os.walk(settings["content"])
-    queue = []
-    parent = None
+    def render_site(self):
+        dest = self.settings["site"]
+        os.makedirs(dest, exist_ok=True)
 
-    ## Build sections
-    for path, dirs, files in walker:
-        if queue:
-            parent = queue.pop()
+        for page in self.site.pages:
+            print(page.name)
+            out = os.path.join(dest, page.url)
+            args = {"page": page, "site": self.site, "settings": self.settings}
+            self.renderer.render(out, page.templates, args)
 
-        rel = os.path.relpath(path, settings["content"])
-        name = os.path.basename(rel)
-        override = settings["url"].get(name) if settings.get("url") else None
-        section = Section(name, rel, parent, override)
+        for category in self.site.categories:
+            print(category.group)
+            out = os.path.join(dest, category.url)
+            args = {"category": category, "site": self.site, "settings": self.settings}
+            self.renderer.render(out, category.templates, args)
 
-        ## Build pages
-        for _file in files:
-            with open(os.path.join(path, _file), "r") as f:
-                text = renderer.render_from_string(f.read())
+            for item in category.items:
+                print(item.value)
+                out = os.path.join(dest, item.url)
+                args = {"item": item, "site": self.site, "settings": self.settings}
+                self.renderer.render(out, item.templates, args)
 
-            text, metadata = reader.read(text)
-            name = os.path.basename(os.path.splitext(_file)[0])
-            page = Page(name, text, metadata, section)
+    @staticmethod
+    def _build_sections(content, overrides, reader, renderer):
+        walker = os.walk(content)
+        queue = []
+        parent = None
 
-            if page.is_index:
-                section.index = page
+        ## Build sections
+        for path, dirs, files in walker:
+            if queue:
+                parent = queue.pop()
+
+            rel = os.path.relpath(path, content)
+            name = os.path.basename(rel)
+            override = overrides.get(name) if overrides else None
+            section = Section(name, rel, parent, override)
+
+            ## Build pages
+            for _file in files:
+                with open(os.path.join(path, _file), "r") as f:
+                    text = renderer.render_from_string(f.read())
+
+                text, metadata = reader.read(text)
+                name = os.path.basename(os.path.splitext(_file)[0])
+                page = Page(name, text, metadata, section)
+
+                if page.is_index:
+                    section.index = page
+                else:
+                    section.pages.append(page)
+
+            queue += [section for _ in dirs]
+
+            if parent:
+                parent.subsections.append(section)
             else:
-                section.pages.append(page)
+                top = section
 
-        queue += [section for _ in dirs]
+        return top
 
-        if parent:
-            parent.subsections.append(section)
-        else:
-            top = section
+    @staticmethod
+    def _build_categories(cats, pages):
+        categories = []
 
-    return top
+        if not cats:
+            return categories
 
+        for group, name in cats.items():
+            category = Category(name, group)
+            for page in pages:
+                if page.metadata.get(group):
+                    category.pages.append(page)
 
-def build_categories(pages, settings):
-    for group, name in settings["categories"].items():
-        category = Category(name, group)
-        for page in pages:
-            if page.metadata.get(group):
-                category.pages.append(page)
+            vals = set()
+            for page in category.pages:
+                for val in page.metadata.get(group):
+                    vals.add(val)
 
-        vals = set()
-        for page in category.pages:
-            for val in page.metadata.get(group):
-                vals.add(val)
+            category.items = [CategoryItem(category, val) for val in vals]
+            categories.append(category)
 
-        category.items = [CategoryItem(category, val) for val in vals]
-        yield category
+        return categories
