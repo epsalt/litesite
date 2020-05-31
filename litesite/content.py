@@ -15,14 +15,17 @@ class Site:
 
     @property
     def sections(self):
-        return self.top.subsections
-
-    @property
-    def pages(self):
         sections = [self.top]
+
         while sections:
             section = sections.pop()
             sections += section.subsections
+
+            yield section
+
+    @property
+    def pages(self):
+        for section in self.sections:
             yield from section.all_pages
 
 
