@@ -8,20 +8,17 @@ from litesite.renderers import Renderer
 class SiteBuilder:
     def __init__(self, site):
         self.site = site
-        self.reader = Reader()
-        self.renderer = Renderer(site.settings)
 
     def build_site(self):
         content = self.site.settings["content"]
         overrides = self.site.settings.get("url")
         cats = self.site.settings.get("categories")
 
-        self.site.top = self._build_sections(
-            content, overrides, self.reader, self.renderer
-        )
+        self.site.top = self._build_sections(content, overrides)
         self.site.categories = self._build_categories(cats, self.site.pages)
 
     def render_site(self):
+        renderer = Renderer(self.site.settings)
         dest = self.site.settings["site"]
         os.makedirs(dest, exist_ok=True)
 
@@ -29,7 +26,7 @@ class SiteBuilder:
             print(page.name)
             out = os.path.join(dest, page.url)
             args = {"page": page, "site": self.site, "settings": self.site.settings}
-            self.renderer.render(out, page.templates, args)
+            renderer.render(out, page.templates, args)
 
         for category in self.site.categories:
             print(category.group)
@@ -39,16 +36,17 @@ class SiteBuilder:
                 "site": self.site,
                 "settings": self.site.settings,
             }
-            self.renderer.render(out, category.templates, args)
+            renderer.render(out, category.templates, args)
 
             for item in category.items:
                 print(item.value)
                 out = os.path.join(dest, item.url)
                 args = {"item": item, "site": self.site, "settings": self.site.settings}
-                self.renderer.render(out, item.templates, args)
+                renderer.render(out, item.templates, args)
 
     @staticmethod
-    def _build_sections(content, overrides, reader, renderer):
+    def _build_sections(content, overrides):
+        reader = Reader()
         walker = os.walk(content)
         queue = []
         parent = None
@@ -66,7 +64,7 @@ class SiteBuilder:
             ## Build pages
             for _file in files:
                 with open(os.path.join(path, _file), "r") as f:
-                    text = renderer.render_from_string(f.read())
+                    text = Renderer.render_from_string(f.read())
 
                 text, metadata = reader.read(text)
                 name = os.path.basename(os.path.splitext(_file)[0])
