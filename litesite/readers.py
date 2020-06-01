@@ -1,5 +1,4 @@
 """Markdown file reader"""
-from jinja2 import Environment, Template
 import markdown
 
 

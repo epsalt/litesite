@@ -2,7 +2,7 @@ import datetime
 
 from dateutil.parser import parse
 
-from litesite.renderers import URLRenderer
+from litesite.renderers import Renderer
 
 
 class Site:
@@ -65,7 +65,7 @@ class Category:
         self.templates = [self.group, "category"]
 
         url_template = "{{ category.group }}/{{ category.name }}"
-        self.url = URLRenderer(url_template, {"category": self}).url
+        self.url = Renderer.render_from_string(url_template, {"category": self})
 
 
 class CategoryItem:
@@ -76,7 +76,7 @@ class CategoryItem:
         self.templates = [self.value, "item", self.category.name]
 
         url_template = "{{ item.category.name }}/{{ item.value }}"
-        self.url = URLRenderer(url_template, {"item": self}).url
+        self.url = Renderer.render_from_string(url_template, {"item": self})
 
     @property
     def pages(self):
@@ -100,7 +100,7 @@ class Page:
 
         default = "{{ page.section.rel }}/{{ page|slug }}"
         url_template = self.section.override if self.section.override else default
-        self.url = URLRenderer(url_template, {"page": self}).url
+        self.url = Renderer.render_from_string(url_template, {"page": self})
 
     @property
     def next(self):

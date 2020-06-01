@@ -1,49 +1,50 @@
 import os
 
-from litesite.content import Category, CategoryItem, Page, Section, Site
+from litesite.content import Category, CategoryItem, Page, Section
 from litesite.readers import Reader
-from litesite.renderers import ContentRenderer
+from litesite.renderers import Renderer
 
 
-class Builder:
-    def __init__(self, settings):
-        self.site = Site(settings)
-        self.settings = settings
+class SiteBuilder:
+    def __init__(self, site):
+        self.site = site
         self.reader = Reader()
-        self.renderer = ContentRenderer(settings)
+        self.renderer = Renderer(site.settings)
 
     def build_site(self):
-        content = self.settings["content"]
-        overrides = self.settings.get("url")
-        cats = self.settings.get("categories")
+        content = self.site.settings["content"]
+        overrides = self.site.settings.get("url")
+        cats = self.site.settings.get("categories")
 
         self.site.top = self._build_sections(
             content, overrides, self.reader, self.renderer
         )
         self.site.categories = self._build_categories(cats, self.site.pages)
 
-        return self.site
-
     def render_site(self):
-        dest = self.settings["site"]
+        dest = self.site.settings["site"]
         os.makedirs(dest, exist_ok=True)
 
         for page in self.site.pages:
             print(page.name)
             out = os.path.join(dest, page.url)
-            args = {"page": page, "site": self.site, "settings": self.settings}
+            args = {"page": page, "site": self.site, "settings": self.site.settings}
             self.renderer.render(out, page.templates, args)
 
         for category in self.site.categories:
             print(category.group)
             out = os.path.join(dest, category.url)
-            args = {"category": category, "site": self.site, "settings": self.settings}
+            args = {
+                "category": category,
+                "site": self.site,
+                "settings": self.site.settings,
+            }
             self.renderer.render(out, category.templates, args)
 
             for item in category.items:
                 print(item.value)
                 out = os.path.join(dest, item.url)
-                args = {"item": item, "site": self.site, "settings": self.settings}
+                args = {"item": item, "site": self.site, "settings": self.site.settings}
                 self.renderer.render(out, item.templates, args)
 
     @staticmethod
@@ -52,13 +53,13 @@ class Builder:
         queue = []
         parent = None
 
-        ## Build sections
         for path, dirs, files in walker:
             if queue:
                 parent = queue.pop()
 
+            ## Build sections
             rel = os.path.relpath(path, content)
-            name = os.path.basename(rel)
+            name = "_top" if os.path.basename(rel) == "." else os.path.basename(rel)
             override = overrides.get(name) if overrides else None
             section = Section(name, rel, parent, override)
 
