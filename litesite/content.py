@@ -96,7 +96,10 @@ class Page:
         self.templates = [self.metadata.get("template"), "page"]
 
         if self.metadata.get("date"):
-            metadata["date"] = parse(metadata["date"])
+            try:
+                self.metadata["date"] = parse(self.metadata.get("date"))
+            except TypeError:
+                pass
 
         default = "{{ page.section.rel }}/{{ page|slug }}"
         url_template = self.section.override if self.section.override else default
