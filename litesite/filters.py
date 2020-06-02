@@ -22,8 +22,9 @@ def date(page, fmt):
 
 @contextfilter
 def permalink(context, url):
-    if context.vars.get("settings"):
-        return urljoin(context.vars["settings"]["base"], url)
+    if context.get("settings"):
+        base = context["settings"]["base"]
+        return urljoin(base, url)
 
     return None
 
