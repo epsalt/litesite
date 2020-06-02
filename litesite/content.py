@@ -55,16 +55,16 @@ class Section:
 
 
 class Category:
-    def __init__(self, name, group):
+    def __init__(self, name, item_name):
         self.name = name
-        self.group = group
+        self.item_name = item_name
 
         self.pages = []
         self.items = []
 
-        self.templates = [self.group, "category"]
+        self.templates = [self.name, "category"]
 
-        url_template = "{{ category.group }}/{{ category.name }}"
+        url_template = "{{ category.name }}/{{ category.item_name }}"
         self.url = Renderer.render_from_string(url_template, {"category": self})
 
 
@@ -73,7 +73,7 @@ class CategoryItem:
         self.value = value
         self.category = category
 
-        self.templates = [self.value, "item", self.category.name]
+        self.templates = [self.value, "item", self.category.item_name]
 
         url_template = "{{ item.category.name }}/{{ item.value }}"
         self.url = Renderer.render_from_string(url_template, {"item": self})
@@ -81,7 +81,7 @@ class CategoryItem:
     @property
     def pages(self):
         for page in self.category.pages:
-            if self.value in page.metadata.get(self.category.group):
+            if self.value in page.metadata.get(self.category.name):
                 yield page
 
 

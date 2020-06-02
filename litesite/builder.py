@@ -29,7 +29,7 @@ class SiteBuilder:
             renderer.render(out, page.templates, args)
 
         for category in self.site.categories:
-            print(category.group)
+            print(category.name)
             out = os.path.join(dest, category.url)
             args = {
                 "category": category,
@@ -91,15 +91,15 @@ class SiteBuilder:
         if not cats:
             return categories
 
-        for group, name in cats.items():
-            category = Category(name, group)
+        for name, item_name in cats.items():
+            category = Category(name, item_name)
             for page in pages:
-                if page.metadata.get(group):
+                if page.metadata.get(name):
                     category.pages.append(page)
 
             vals = set()
             for page in category.pages:
-                for val in page.metadata.get(group):
+                for val in page.metadata.get(name):
                     vals.add(val)
 
             category.items = [CategoryItem(category, val) for val in vals]
