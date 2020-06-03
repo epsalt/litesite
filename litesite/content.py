@@ -1,5 +1,6 @@
 import datetime
 
+from cached_property import cached_property
 from dateutil.parser import parse
 
 from litesite.renderers import Renderer
@@ -64,8 +65,11 @@ class Category:
 
         self.templates = [self.name, "category"]
 
-        url_template = "{{ category.name }}/{{ category.item_name }}"
-        self.url = Renderer.render_from_string(url_template, {"category": self})
+    @cached_property
+    def url(self):
+        template = "{{ category.name }}/{{ category.item_name }}"
+        args = {"category": self}
+        return Renderer.render_from_string(template, args)
 
 
 class CategoryItem:
@@ -75,8 +79,11 @@ class CategoryItem:
 
         self.templates = [self.value, "item", self.category.item_name]
 
-        url_template = "{{ item.category.name }}/{{ item.value }}"
-        self.url = Renderer.render_from_string(url_template, {"item": self})
+    @cached_property
+    def url(self):
+        template = "{{ item.category.name }}/{{ item.value }}"
+        args = {"item": self}
+        return Renderer.render_from_string(template, args)
 
     @property
     def pages(self):
@@ -99,11 +106,18 @@ class Page:
             try:
                 self.metadata["date"] = parse(self.metadata.get("date"))
             except TypeError:
+
                 pass
 
-        default = "{{ page.section.rel }}/{{ page|slug }}"
-        url_template = self.section.override if self.section.override else default
-        self.url = Renderer.render_from_string(url_template, {"page": self})
+    @cached_property
+    def url(self):
+        if self.section.override:
+            template = self.section.override
+        else:
+            template = "{{ page.section.rel }}/{{ page|slug }}"
+
+        args = {"page": self}
+        return Renderer.render_from_string(template, args)
 
     @property
     def next(self):
