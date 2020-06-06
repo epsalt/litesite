@@ -1,8 +1,23 @@
 import os
 
-from litesite.content import Category, CategoryItem, Page, Section
+import yaml
+
+from litesite.content import Category, CategoryItem, Page, Section, Site
 from litesite.readers import Reader
 from litesite.renderers import Renderer
+
+
+def publish(config):
+    with open(config, "r") as stream:
+        settings = yaml.safe_load(stream)
+
+    site = Site(settings)
+    builder = SiteBuilder(site)
+
+    builder.build_site()
+    builder.render_site()
+
+    return site
 
 
 class SiteBuilder:
