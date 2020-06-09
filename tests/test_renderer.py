@@ -5,13 +5,6 @@ import pytest
 from litesite.renderers import Renderer
 
 
-@pytest.fixture
-def renderer(shared_datadir):
-    settings = {"templates": f"{shared_datadir}/templates"}
-
-    return Renderer(settings)
-
-
 class TestStringRender:
     def test_render_from_string(self, page):
         string = "{{ page.name }}"

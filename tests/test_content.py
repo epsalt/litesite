@@ -2,15 +2,6 @@ from dateutil.parser import parse
 import pytest
 
 
-@pytest.fixture
-def section(site):
-    for section in site.sections:
-        if section.name == "dogs":
-            return section
-
-    raise NameError
-
-
 class TestSection:
     def test_sorted(self, section):
         slugs = [page.metadata["slug"] for page in section.sorted]

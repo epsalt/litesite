@@ -2,8 +2,8 @@ import os
 
 import pytest
 
-from litesite.builder import SiteBuilder
-from litesite.content import Site
+from litesite.builder import build_site
+from litesite.renderers import Renderer
 
 
 @pytest.fixture
@@ -17,11 +17,15 @@ def settings(shared_datadir):
 
 
 @pytest.fixture
-def site(settings):
-    test_site = Site(settings)
-    SiteBuilder(test_site).build_site()
+def renderer(shared_datadir):
+    settings = {"templates": f"{shared_datadir}/templates"}
 
-    return test_site
+    return Renderer(settings)
+
+
+@pytest.fixture
+def site(settings):
+    return build_site(settings)
 
 
 @pytest.fixture
@@ -31,6 +35,15 @@ def category(site):
             test_category = cat
 
     return test_category
+
+
+@pytest.fixture
+def section(site):
+    for section in site.sections:
+        if section.name == "dogs":
+            return section
+
+    raise NameError
 
 
 @pytest.fixture

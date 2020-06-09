@@ -1,123 +1,152 @@
-import os
+"""Site creation, loading, and batch rendering.
 
-import yaml
+This module publishes the site in two steps, build and render. Build
+is the loading of data from the content directory into internal data
+structures. Render is template lookup and writing content to html.
+
+"""
+
+import os
 
 from litesite.content import Category, CategoryItem, Page, Section, Site
 from litesite.readers import Reader
 from litesite.renderers import Renderer
 
 
-def publish(config):
-    with open(config, "r") as stream:
-        settings = yaml.safe_load(stream)
+def build_site(settings):
+    """Initialize site and load content into data structures."""
 
     site = Site(settings)
-    builder = SiteBuilder(site)
-
-    builder.build_site()
-    builder.render_site()
+    site.top = load_content(settings)
+    site.categories = load_categories(site)
 
     return site
 
 
-class SiteBuilder:
-    def __init__(self, site):
-        self.site = site
+def render_site(site):
+    """Renders every content object in the site."""
 
-    def build_site(self):
-        content = self.site.settings["content"]
-        overrides = self.site.settings.get("url")
-        cats = self.site.settings.get("categories")
+    renderer = Renderer(site.settings)
+    dest = site.settings["site"]
+    os.makedirs(dest, exist_ok=True)
 
-        self.site.top = self._build_sections(content, overrides)
-        self.site.categories = self._build_categories(cats, self.site.pages)
+    for page in site.pages:
+        print(page.name)
+        out = os.path.join(dest, page.url)
+        args = {"page": page, "site": site, "settings": site.settings}
+        renderer.render(out, page.templates, args)
 
-    def render_site(self):
-        renderer = Renderer(self.site.settings)
-        dest = self.site.settings["site"]
-        os.makedirs(dest, exist_ok=True)
+    for category in site.categories:
+        print(category.name)
+        out = os.path.join(dest, category.url)
+        args = {
+            "category": category,
+            "site": site,
+            "settings": site.settings,
+        }
+        renderer.render(out, category.templates, args)
 
-        for page in self.site.pages:
-            print(page.name)
-            out = os.path.join(dest, page.url)
-            args = {"page": page, "site": self.site, "settings": self.site.settings}
-            renderer.render(out, page.templates, args)
+        for item in category.items:
+            print(item.value)
+            out = os.path.join(dest, item.url)
+            args = {"item": item, "site": site, "settings": site.settings}
+            renderer.render(out, item.templates, args)
 
-        for category in self.site.categories:
-            print(category.name)
-            out = os.path.join(dest, category.url)
-            args = {
-                "category": category,
-                "site": self.site,
-                "settings": self.site.settings,
-            }
-            renderer.render(out, category.templates, args)
 
-            for item in category.items:
-                print(item.value)
-                out = os.path.join(dest, item.url)
-                args = {"item": item, "site": self.site, "settings": self.site.settings}
-                renderer.render(out, item.templates, args)
+def load_content(settings):
+    """Load section and page data from the content directory.
 
-    @staticmethod
-    def _build_sections(content, overrides):
-        reader = Reader()
-        walker = os.walk(content)
-        queue = []
-        parent = None
+    os.walk is used to traverse the content directory and populate
+    section data.
 
-        for path, dirs, files in walker:
-            if queue:
-                parent = queue.pop()
+    """
 
-            ## Build sections
-            rel = os.path.relpath(path, content)
-            name = "_top" if os.path.basename(rel) == "." else os.path.basename(rel)
-            override = overrides.get(name) if overrides else None
-            section = Section(name, rel, parent, override)
+    reader = Reader()
+    queue = []
 
-            ## Build pages
-            for _file in files:
-                with open(os.path.join(path, _file), "r") as f:
-                    text = Renderer.render_from_string(f.read())
+    for path, dirs, files in os.walk(settings["content"]):
+        parent = queue.pop() if queue else None
+        section = build_section(path, parent, files, settings, reader)
+        queue += [section for _ in dirs]
 
-                text, metadata = reader.read(text)
-                name = os.path.basename(os.path.splitext(_file)[0])
-                page = Page(name, text, metadata, section)
+        if parent:
+            parent.subsections.append(section)
+        else:
+            top = section
 
-                if page.is_index:
-                    section.index = page
-                else:
-                    section.pages.append(page)
+    return top
 
-            queue += [section for _ in dirs]
 
-            if parent:
-                parent.subsections.append(section)
-            else:
-                top = section
+def build_section(path, parent, files, settings, reader):
+    """Load a section and child pages."""
 
-        return top
+    rel = os.path.relpath(path, settings["content"])
 
-    @staticmethod
-    def _build_categories(cats, pages):
-        categories = []
+    ## Special name for site root section
+    if os.path.basename(rel) == ".":
+        name = "_top"
+    else:
+        name = os.path.basename(rel)
 
-        if not cats:
-            return categories
+    ## Get section page URL overrides from settings
+    if settings.get("url"):
+        override = settings["url"].get(name)
+    else:
+        override = None
 
-        for name, item_name in cats.items():
-            category = Category(name, item_name)
-            for page in pages:
-                if page.metadata.get(name):
-                    category.pages.append(page)
+    section = Section(name, rel, parent, override)
 
-            vals = set()
-            for page in category.pages:
-                for val in page.metadata.get(name):
-                    vals.add(val)
+    for _file in files:
+        page = build_page(path, _file, section, settings, reader)
 
-            category.items = [CategoryItem(category, val) for val in vals]
-            categories.append(category)
+        if page.is_index:
+            section.index = page
+        else:
+            section.pages.append(page)
 
+    return section
+
+
+def build_page(path, _file, section, settings, reader):
+    """Read a file into a page object.
+
+    Page contents go through an initial render step with access to
+    site settings.
+
+    """
+
+    with open(os.path.join(path, _file), "r") as f:
+        args = {"settings": settings}
+        text = Renderer.render_from_string(f.read(), args)
+
+    text, metadata = reader.read(text)
+    name = os.path.basename(os.path.splitext(_file)[0])
+
+    return Page(name, text, metadata, section)
+
+
+def load_categories(site):
+    """Populate categories from config definition"""
+
+    cats = site.settings["categories"]
+    pages = site.pages
+    categories = []
+
+    if not cats:
         return categories
+
+    for name, item_name in cats.items():
+        category = Category(name, item_name)
+        for page in pages:
+            if page.metadata.get(name):
+                category.pages.append(page)
+
+        vals = set()
+        for page in category.pages:
+            for val in page.metadata.get(name):
+                vals.add(val)
+
+        category.items = [CategoryItem(category, val) for val in vals]
+        categories.append(category)
+
+    return categories
