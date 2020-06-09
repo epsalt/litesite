@@ -47,6 +47,13 @@ class TestTemplateRenderer:
 
         assert text == "<p>This is a top level page.</p>"
 
+    def test_preprocessing(self, site):
+        for pg in site.pages:
+            if pg.name == "preprocessing":
+                test_page = pg
+
+        assert test_page.content == "<p>preprocessing okay</p>"
+
 
 class TestFilters:
     def test_datetime(self):

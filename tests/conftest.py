@@ -13,6 +13,7 @@ def settings(shared_datadir):
         "site": os.path.join(shared_datadir, "site"),
         "categories": {"tags": "tag"},
         "url": {"override": "overridden/{{ page|slug }}"},
+        "preprocess_test": "preprocessing okay",
     }
 
 
