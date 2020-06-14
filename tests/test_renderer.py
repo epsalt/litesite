@@ -31,10 +31,9 @@ class TestTemplateRenderer:
 
         assert template.name == "404.html"
 
-    def test_template_render_text(self, page, renderer):
-        template = renderer.lookup(page.templates)
-        args = {"page": page}
-        text = renderer.render(page.url, page.templates, args)
+    def test_template_render_text(self, settings, page, renderer):
+        dest = os.path.join(settings["site"], page.url)
+        text = renderer.render(dest, page.templates, {"page": page})
 
         assert text == "<p>This is a top level page.</p>"
 
