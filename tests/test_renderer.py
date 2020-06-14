@@ -47,13 +47,6 @@ class TestTemplateRenderer:
 
         assert text == "<p>This is a top level page.</p>"
 
-    def test_preprocessing(self, site):
-        for pg in site.pages:
-            if pg.name == "preprocessing":
-                test_page = pg
-
-        assert test_page.content == "<p>preprocessing okay</p>"
-
 
 class TestFilters:
     def test_datetime(self):
@@ -80,10 +73,34 @@ class TestFilters:
 
         assert text == "2013--04--15"
 
-    def test_permalink(self):
-        string = "{{ 'test/location'|permalink }}"
-        text = Renderer.render_from_string(
-            string, {"settings": {"base": "https://www.test.com"}}
+    def test_canonify(self):
+        url = "/relative/link/image.png"
+        string = "{{ url|canonify('https://www.example.org') }}"
+        text = Renderer.render_from_string(string, {"url": url})
+
+        assert text == "https://www.example.org/relative/link/image.png"
+
+    def test_canonify_already_canonical(self):
+        url = "https://www.website.com/relative/link/image.png"
+        string = "{{ url|canonify('https://www.example.org') }}"
+        text = Renderer.render_from_string(string, {"url": url})
+
+        assert text == url
+
+    def test_canonify_media_img(self):
+        img = '<img src="/relative/link/image.png"/>'
+        string = "{{ img|canonify_media('https://www.example.org') }}"
+        text = Renderer.render_from_string(string, {"img": img})
+        expected = '<img src="https://www.example.org/relative/link/image.png"/>'
+
+        assert text == expected
+
+    def test_canonify_media_vid(self):
+        vid = '<video src="/relative/link/video.webm"></video>'
+        string = "{{ vid|canonify_media('https://www.example.org') }}"
+        text = Renderer.render_from_string(string, {"vid": vid})
+        expected = (
+            '<video src="https://www.example.org/relative/link/video.webm"></video>'
         )
 
-        assert text == "https://www.test.com/test/location"
+        assert text == expected

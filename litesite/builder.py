@@ -97,7 +97,11 @@ def build_section(path, parent, files, settings, reader):
     section = Section(name, rel, parent, override)
 
     for _file in files:
-        page = build_page(path, _file, section, settings, reader)
+        name = os.path.basename(os.path.splitext(_file)[0])
+        with open(os.path.join(path, _file), "r") as f:
+            text, metadata = reader.read(f.read())
+
+        page = Page(name, text, metadata, section)
 
         if page.is_index:
             section.index = page
@@ -105,24 +109,6 @@ def build_section(path, parent, files, settings, reader):
             section.pages.append(page)
 
     return section
-
-
-def build_page(path, _file, section, settings, reader):
-    """Read a file into a page object.
-
-    Page contents go through an initial render step with access to
-    site settings.
-
-    """
-
-    with open(os.path.join(path, _file), "r") as f:
-        args = {"settings": settings}
-        text = Renderer.render_from_string(f.read(), args)
-
-    text, metadata = reader.read(text)
-    name = os.path.basename(os.path.splitext(_file)[0])
-
-    return Page(name, text, metadata, section)
 
 
 def load_categories(site):

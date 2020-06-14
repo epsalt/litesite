@@ -7,8 +7,8 @@ they are available during template rendering.
 
 from urllib.parse import urljoin
 
+from bs4 import BeautifulSoup
 from dateutil.parser import parse
-from jinja2 import contextfilter
 
 
 def datetime(string):
@@ -43,21 +43,28 @@ def date(page, fmt):
     return page.metadata["date"].strftime(fmt)
 
 
-@contextfilter
-def permalink(context, url):
-    """Join URL with site basename."""
+def canonify(url, base):
+    """Convert a relative link to absolute."""
 
-    if context.get("settings"):
-        base = context["settings"]["base"]
-        return urljoin(base, url)
+    return urljoin(base, url)
 
-    return None
+
+def canonify_media(content, base):
+    """Convert all img and video tag src links to absolute."""
+
+    soup = BeautifulSoup(content, features="html.parser")
+    for media in ["img", "video"]:
+        for element in soup.findAll(media):
+            element["src"] = canonify(element["src"], base)
+
+    return str(soup)
 
 
 filters = {
+    "canonify": canonify,
+    "canonify_media": canonify_media,
     "date": date,
     "datetime": datetime,
     "isoformat": isoformat,
-    "permalink": permalink,
     "slug": slug,
 }
