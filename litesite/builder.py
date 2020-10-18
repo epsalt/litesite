@@ -61,7 +61,8 @@ def load_content(settings):
 
     """
 
-    reader = Reader()
+    exts = settings.get("markdown_extensions")
+    reader = Reader(user_extensions=exts)
     queue = []
 
     for path, dirs, files in os.walk(settings["content"]):
