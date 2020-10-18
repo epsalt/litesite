@@ -141,6 +141,14 @@ class CategoryItem:
             if self.value in page.metadata.get(self.category.name):
                 yield page
 
+    @property
+    def sorted(self):
+        """Return pages sorted in date, title order."""
+
+        default_keys = ("date", "title")
+        key = lambda page: tuple(page.metadata[k] for k in default_keys)
+        return sorted(self.pages, key=key)
+
 
 class Page:
     """An individual text document corresponding to a file in the content directory.
