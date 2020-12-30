@@ -111,7 +111,7 @@ class Category:
     def url(self):
         """Return the category URL."""
 
-        template = "{{ category.name }}/{{ category.item_name }}"
+        template = "{{ category.name }}/index.html"
         args = {"category": self}
         return Renderer.render_from_string(template, args)
 
@@ -123,7 +123,7 @@ class CategoryItem:
         self.value = value
         self.category = category
 
-        self.templates = [self.value, "item", self.category.item_name]
+        self.templates = [self.value, self.category.item_name, "item"]
 
     @cached_property
     def url(self):
