@@ -115,6 +115,12 @@ class Category:
         args = {"category": self}
         return Renderer.render_from_string(template, args)
 
+    @property
+    def sorted(self):
+        """Return category items sorted in count, value order."""
+
+        return sorted(self.items, key=lambda item: (-item.count, item.value))
+
 
 class CategoryItem:
     """A value associated with a category key."""
@@ -148,6 +154,12 @@ class CategoryItem:
         default_keys = ("date", "title")
         key = lambda page: tuple(page.metadata[k] for k in default_keys)
         return sorted(self.pages, key=key)
+
+    @property
+    def count(self):
+        """Return the number of times a category item is used on a page."""
+
+        return sum(1 for page in self.pages)
 
 
 class Page:
